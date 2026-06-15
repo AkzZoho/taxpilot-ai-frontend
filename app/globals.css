@@ -3,14 +3,67 @@
 @tailwind utilities;
 
 :root {
-  --radius: 16px;
+  --radius: 1rem;
+  --sidebar-w: 268px;
 }
 
-body {
-  background: #f8fbff;
-  color: #0f172a;
+@layer base {
+  body {
+    background: #f4f7fe;
+    color: #0f172a;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  * {
+    scroll-behavior: smooth;
+  }
 }
 
-.focus-ring {
-  @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2;
+@layer utilities {
+  .focus-ring {
+    @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2;
+  }
+
+  .glass {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  .sidebar-item {
+    @apply flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150 cursor-pointer;
+  }
+
+  .sidebar-item-active {
+    @apply bg-white/15 text-white;
+  }
+
+  .sidebar-item-inactive {
+    @apply text-white/60 hover:bg-white/10 hover:text-white;
+  }
+
+  .stat-card {
+    @apply rounded-2xl bg-white p-5 shadow-soft border border-slate-100;
+  }
+
+  .page-title {
+    @apply text-2xl font-bold tracking-tight text-slate-900;
+  }
+
+  .page-subtitle {
+    @apply mt-1 text-sm text-slate-500;
+  }
 }
+
+/* Custom scrollbar */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+/* Animate in */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-up { animation: fadeUp 0.3s ease forwards; }
