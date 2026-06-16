@@ -1,10 +1,11 @@
 import { AppShell } from "@/components/layout/app-shell";
 import { Card } from "@/components/ui/card";
 import { UploadWidget } from "@/components/tax/upload-widget";
+import { FlowProgress } from "@/components/ui/flow-progress";
 import { FileText, Info, Lock } from "lucide-react";
 
 const docGuide = [
-  { name: "Form 16", desc: "From your employer — salary, TDS, deductions." },
+  { name: "Form 16", desc: "From your employer — salary, TDS, deductions.", required: true },
   { name: "Form 26AS", desc: "From IT portal — all TDS entries by PAN." },
   { name: "AIS", desc: "Annual Information Statement — interest, dividends." },
   { name: "Salary Slip", desc: "For manual verification of allowances." },
@@ -14,10 +15,12 @@ export default function UploadPage() {
   return (
     <AppShell>
       <div className="animate-fade-up">
-        <h1 className="page-title">Upload Documents</h1>
-        <p className="page-subtitle">Securely upload your tax documents for AI extraction.</p>
+        <FlowProgress />
 
-        <div className="mt-6 grid gap-5 lg:grid-cols-[1fr_280px]">
+        <h1 className="page-title">Upload Documents</h1>
+        <p className="page-subtitle">Start with Form 16 — TaxPilot will extract and verify every number.</p>
+
+        <div className="mt-5 grid gap-5 lg:grid-cols-[1fr_260px]">
           <Card>
             <UploadWidget />
           </Card>
@@ -34,6 +37,7 @@ export default function UploadPage() {
                     <div className="flex items-center gap-2">
                       <FileText className="h-3.5 w-3.5 text-brand-500 shrink-0" />
                       <p className="text-sm font-semibold text-slate-800">{d.name}</p>
+                      {d.required && <span className="rounded-full bg-brand-50 px-2 py-0.5 text-[10px] font-bold text-brand-600">Start here</span>}
                     </div>
                     <p className="mt-0.5 pl-5 text-xs text-slate-500">{d.desc}</p>
                   </div>
