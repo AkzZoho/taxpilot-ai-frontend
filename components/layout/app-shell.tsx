@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { ReactNode, useState } from "react";
 import {
   Bot, ChevronRight, FileUp, LayoutDashboard, LogOut,
-  Menu, Scale, Settings, ShieldCheck, User, X,
+  Menu, Scale, Settings, ShieldCheck, Sparkles, User, X,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
@@ -14,6 +14,7 @@ const nav = [
   { label: "Upload", href: "/upload", icon: FileUp },
   { label: "Review", href: "/review", icon: ShieldCheck },
   { label: "Compare", href: "/regime-comparison", icon: Scale },
+  { label: "Tax Advisor", href: "/advisor", icon: Sparkles },
   { label: "Filing", href: "/filing-assistant", icon: Bot },
 ];
 

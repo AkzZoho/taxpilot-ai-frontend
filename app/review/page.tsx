@@ -122,7 +122,7 @@ export default function ReviewPage() {
       )
     );
     setConfirmed(true);
-    setTimeout(() => router.push("/regime-comparison"), 800);
+    setTimeout(() => router.push("/advisor"), 800);
   }
 
   if (mode === "loading") {
@@ -241,7 +241,7 @@ export default function ReviewPage() {
                   </Button>
                 )}
                 <Button size="lg" onClick={handleConfirm} disabled={confirmed}>
-                  {confirmed ? "Saving…" : <>Confirm & Compare Regimes <ArrowRight className="h-4 w-4" /></>}
+                  {confirmed ? "Saving…" : <>Confirm & Talk to Advisor <ArrowRight className="h-4 w-4" /></>}
                 </Button>
               </div>
             </div>
