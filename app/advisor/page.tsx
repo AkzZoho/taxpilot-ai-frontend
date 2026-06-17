@@ -23,13 +23,14 @@ const SUGGESTIONS = [
   "What is 80CCD(1B) and should I use it?",
 ];
 
+// Minimum messages before we save a summary
+const MIN_MESSAGES_TO_SUMMARIZE = 4;
+
 function formatMessage(text: string) {
-  // Convert **bold** and basic markdown to styled spans
   const lines = text.split("\n");
   return lines.map((line, i) => {
     if (!line.trim()) return <div key={i} className="h-2" />;
 
-    // Bold + bullet
     const formatted = line
       .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
       .replace(/`(.+?)`/g, "<code class='bg-slate-100 text-brand-700 px-1 rounded text-xs font-mono'>$1</code>");
@@ -65,16 +66,43 @@ export default function AdvisorPage() {
   const [taxData, setTaxData] = useState<TaxData | null>(null);
   const [initializing, setInitializing] = useState(true);
   const [error, setError] = useState("");
+  const [summarySaved, setSummarySaved] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const messagesRef = useRef<Message[]>([]);
 
   useEffect(() => {
     loadTaxDataAndGreet();
+    // Save summary when user leaves the page
+    return () => {
+      if (messagesRef.current.length >= MIN_MESSAGES_TO_SUMMARIZE) {
+        saveSummary(messagesRef.current);
+      }
+    };
   }, []);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
+
+  // Keep ref in sync so the cleanup closure always has latest messages
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
+
+  async function saveSummary(msgs: Message[]) {
+    if (msgs.length < MIN_MESSAGES_TO_SUMMARIZE) return;
+    try {
+      await fetch("/api/advisor-summary", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: msgs.map((m) => ({ role: m.role, content: m.content })) }),
+      });
+      setSummarySaved(true);
+    } catch {
+      // Silent fail — summary is non-critical
+    }
+  }
 
   async function loadTaxDataAndGreet() {
     const supabase = createClient();
@@ -93,7 +121,6 @@ export default function AdvisorPage() {
 
     setInitializing(false);
 
-    // Send initial greeting
     await sendMessage(
       data
         ? "Hello! I've just loaded my tax data. Please analyze it and tell me my tax situation, which regime is better for me, and what I can do to save more tax."
@@ -152,6 +179,12 @@ export default function AdvisorPage() {
           prev.map((m) => m.id === assistantId ? { ...m, content: full } : m)
         );
       }
+
+      // Auto-save summary every 6 messages
+      const updatedMessages = [...newMessages, userMsg, { id: assistantId, role: "assistant" as const, content: full }];
+      if (updatedMessages.length > 0 && updatedMessages.length % 6 === 0) {
+        saveSummary(updatedMessages);
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Something went wrong");
       setMessages((prev) => prev.filter((m) => m.id !== assistantId));
@@ -161,13 +194,8 @@ export default function AdvisorPage() {
     setTimeout(() => inputRef.current?.focus(), 100);
   }
 
-  function handleSend() {
-    sendMessage(input);
-  }
-
-  function handleSuggestion(s: string) {
-    sendMessage(s);
-  }
+  function handleSend() { sendMessage(input); }
+  function handleSuggestion(s: string) { sendMessage(s); }
 
   return (
     <AppShell>
@@ -181,12 +209,20 @@ export default function AdvisorPage() {
             <h1 className="text-base font-bold text-slate-900">TaxPilot Advisor</h1>
             <p className="text-xs text-slate-500">Your personal CA — powered by AI</p>
           </div>
-          {taxData && (
-            <span className="ml-auto flex items-center gap-1.5 rounded-full bg-trust-50 border border-trust-100 px-3 py-1 text-xs font-semibold text-trust-700">
-              <span className="h-1.5 w-1.5 rounded-full bg-trust-500" />
-              Form 16 loaded
-            </span>
-          )}
+          <div className="ml-auto flex items-center gap-2">
+            {summarySaved && (
+              <span className="flex items-center gap-1 text-xs text-trust-600 font-medium">
+                <span className="h-1.5 w-1.5 rounded-full bg-trust-500" />
+                Session saved
+              </span>
+            )}
+            {taxData && (
+              <span className="flex items-center gap-1.5 rounded-full bg-trust-50 border border-trust-100 px-3 py-1 text-xs font-semibold text-trust-700">
+                <span className="h-1.5 w-1.5 rounded-full bg-trust-500" />
+                Form 16 loaded
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Messages */}
@@ -292,7 +328,7 @@ export default function AdvisorPage() {
             </button>
           </div>
           <p className="mt-2 text-center text-xs text-slate-400">
-            AI advice is for guidance only. Consult a CA before filing.
+            AI advice is based on previous patterns and for guidance only. Consult a CA if required for detailed information.
           </p>
         </div>
       </div>
