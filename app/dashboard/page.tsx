@@ -3,24 +3,25 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
-  ArrowRight, Bot, FileUp, Scale, ShieldCheck,
-  TrendingDown, TrendingUp, AlertTriangle, CheckCircle2,
+  ArrowRight, Bot, FileUp, Scale, ShieldCheck, Sparkles,
+  TrendingDown, TrendingUp, AlertTriangle, CheckCircle2, Lock,
 } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 import { formatINR } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 interface Stats {
   docCount: number;
   userName: string;
 }
 
-const quickActions = [
-  { label: "Upload Documents", href: "/upload", icon: FileUp, desc: "Add Form 16, AIS, 26AS" },
+const lockedActions = [
   { label: "Review Extraction", href: "/review", icon: ShieldCheck, desc: "Verify extracted values" },
   { label: "Compare Regimes", href: "/regime-comparison", icon: Scale, desc: "Old vs New regime" },
+  { label: "Tax Advisor", href: "/advisor", icon: Sparkles, desc: "AI-powered tax tips" },
   { label: "Filing Assistant", href: "/filing-assistant", icon: Bot, desc: "ITR form guidance" },
 ];
 
@@ -94,20 +95,6 @@ export default function DashboardPage() {
           />
         </div>
 
-        {/* Upload prompt */}
-        {!hasDocuments && !loading && (
-          <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 flex items-start gap-3">
-            <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
-            <div>
-              <p className="text-sm font-semibold text-amber-800">No documents uploaded yet</p>
-              <p className="mt-0.5 text-sm text-amber-700">Upload Form 16 to unlock your tax analysis, regime comparison, and filing guidance.</p>
-              <Link href="/upload" className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-amber-800 hover:underline">
-                Upload now <ArrowRight className="h-3.5 w-3.5" />
-              </Link>
-            </div>
-          </div>
-        )}
-
         {/* Summary + actions row */}
         <div className="mt-6 grid gap-5 lg:grid-cols-3">
           {/* Tax summary */}
@@ -139,7 +126,7 @@ export default function DashboardPage() {
             </div>
           </Card>
 
-          {/* Filing status */}
+          {/* Filing checklist */}
           <Card>
             <h2 className="text-base font-bold text-slate-900">Filing Checklist</h2>
             <div className="mt-4 space-y-3">
@@ -162,21 +149,85 @@ export default function DashboardPage() {
           </Card>
         </div>
 
-        {/* Quick actions */}
+        {/* Upload CTA or Action Grid */}
         <div className="mt-6">
-          <h2 className="mb-4 text-base font-bold text-slate-900">Quick Actions</h2>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {quickActions.map((action) => (
-              <Link key={action.href} href={action.href}>
-                <div className="group rounded-2xl border border-slate-100 bg-white p-4 shadow-soft transition hover:border-brand-200 hover:shadow-card cursor-pointer">
-                  <action.icon className="h-5 w-5 text-brand-600 transition group-hover:scale-110" />
-                  <p className="mt-3 text-sm font-semibold text-slate-800">{action.label}</p>
-                  <p className="mt-0.5 text-xs text-slate-400">{action.desc}</p>
+          {!hasDocuments && !loading ? (
+            /* Upload prompt — no Form 16 yet */
+            <div className="rounded-2xl border-2 border-dashed border-brand-200 bg-brand-50/40 p-8">
+              <div className="flex flex-col items-center text-center">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-100 mb-4">
+                  <FileUp className="h-6 w-6 text-brand-600" />
                 </div>
-              </Link>
-            ))}
-          </div>
+                <h2 className="text-base font-bold text-slate-900">Upload Form 16 to get started</h2>
+                <p className="mt-1 text-sm text-slate-500 max-w-sm">
+                  Review, Compare, Advisor, and Filing unlock automatically once your Form 16 is uploaded.
+                </p>
+                <Link href="/upload" className="mt-5">
+                  <Button>
+                    Upload Form 16 <ArrowRight className="h-4 w-4" />
+                  </Button>
+                </Link>
+              </div>
+
+              {/* Locked previews */}
+              <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {lockedActions.map((action) => (
+                  <div
+                    key={action.href}
+                    className="relative rounded-2xl border border-slate-100 bg-white/60 p-4 opacity-50 select-none"
+                  >
+                    <div className="flex items-center justify-between">
+                      <action.icon className="h-5 w-5 text-slate-400" />
+                      <Lock className="h-3.5 w-3.5 text-slate-300" />
+                    </div>
+                    <p className="mt-3 text-sm font-semibold text-slate-500">{action.label}</p>
+                    <p className="mt-0.5 text-xs text-slate-300">{action.desc}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : hasDocuments ? (
+            /* Unlocked actions */
+            <div>
+              <div className="flex items-center gap-2 mb-4">
+                <h2 className="text-base font-bold text-slate-900">Quick Actions</h2>
+                <span className="flex items-center gap-1 rounded-full bg-trust-50 border border-trust-100 px-2.5 py-0.5 text-xs font-semibold text-trust-700">
+                  <CheckCircle2 className="h-3 w-3" /> Form 16 uploaded
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {lockedActions.map((action) => (
+                  <Link key={action.href} href={action.href}>
+                    <div className={cn(
+                      "group rounded-2xl border bg-white p-4 shadow-soft transition hover:shadow-card cursor-pointer",
+                      action.href === "/advisor"
+                        ? "border-brand-200 bg-brand-50/30 hover:border-brand-400"
+                        : "border-slate-100 hover:border-brand-200"
+                    )}>
+                      <action.icon className={cn(
+                        "h-5 w-5 transition group-hover:scale-110",
+                        action.href === "/advisor" ? "text-brand-600" : "text-brand-500"
+                      )} />
+                      <p className="mt-3 text-sm font-semibold text-slate-800">{action.label}</p>
+                      <p className="mt-0.5 text-xs text-slate-400">{action.desc}</p>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          ) : null}
         </div>
+
+        {/* Always show upload button at bottom when docs exist */}
+        {hasDocuments && (
+          <div className="mt-4 flex justify-end">
+            <Link href="/upload">
+              <Button variant="secondary" size="sm">
+                <FileUp className="h-3.5 w-3.5" /> Add another document
+              </Button>
+            </Link>
+          </div>
+        )}
       </div>
     </AppShell>
   );
