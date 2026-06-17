@@ -25,8 +25,9 @@ export async function updateSession(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
   const isAuthPage = pathname.startsWith("/login") || pathname.startsWith("/signup");
+  const isPublicPage = pathname === "/" || pathname.startsWith("/auth");
 
-  if (!user && !isAuthPage) {
+  if (!user && !isAuthPage && !isPublicPage) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
