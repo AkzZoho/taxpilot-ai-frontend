@@ -16,6 +16,29 @@ import { cn } from "@/lib/utils";
 interface Stats {
   docCount: number;
   userName: string;
+  grossSalary: number;
+  tds: number;
+  standardDeduction: number;
+  taxLiability: number;
+  refund: number;
+  hasFields: boolean;
+}
+
+function computeTax(income: number): number {
+  if (income <= 0) return 0;
+  const slabs: [number, number][] = [
+    [300000, 0], [400000, 0.05], [300000, 0.10],
+    [200000, 0.15], [300000, 0.20], [Infinity, 0.30],
+  ];
+  let tax = 0, rem = income;
+  for (const [limit, rate] of slabs) {
+    const chunk = Math.min(rem, limit);
+    tax += chunk * rate;
+    rem -= chunk;
+    if (rem <= 0) break;
+  }
+  if (income <= 700000) tax = 0;
+  return Math.round(tax * 1.04);
 }
 
 const lockedActions = [
@@ -26,19 +49,36 @@ const lockedActions = [
 ];
 
 export default function DashboardPage() {
-  const [stats, setStats] = useState<Stats>({ docCount: 0, userName: "" });
+  const [stats, setStats] = useState<Stats>({
+    docCount: 0, userName: "", grossSalary: 0, tds: 0,
+    standardDeduction: 0, taxLiability: 0, refund: 0, hasFields: false,
+  });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function load() {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
-      const { count } = await supabase
-        .from("tax_documents")
-        .select("*", { count: "exact", head: true });
+      const [{ count }, { data: fields }] = await Promise.all([
+        supabase.from("tax_documents").select("*", { count: "exact", head: true }),
+        supabase.from("extracted_fields").select("id, value"),
+      ]);
+
+      const f: Record<string, number> = {};
+      (fields ?? []).forEach((r) => { f[r.id] = Number(r.value); });
+      const hasFields = Object.keys(f).length > 0;
+
+      const grossSalary = f["gross-salary"] ?? 0;
+      const tds = f["tds"] ?? 0;
+      const standardDeduction = 75000;
+      const taxableIncome = Math.max(0, grossSalary - standardDeduction);
+      const taxLiability = computeTax(taxableIncome);
+      const refund = Math.max(0, tds - taxLiability);
+
       setStats({
         docCount: count ?? 0,
         userName: user?.user_metadata?.full_name?.split(" ")[0] ?? "there",
+        grossSalary, tds, standardDeduction, taxLiability, refund, hasFields,
       });
       setLoading(false);
     }
@@ -46,6 +86,7 @@ export default function DashboardPage() {
   }, []);
 
   const hasDocuments = stats.docCount > 0;
+  const { hasFields, grossSalary, tds, standardDeduction, taxLiability, refund } = stats;
 
   return (
     <AppShell>
@@ -75,22 +116,22 @@ export default function DashboardPage() {
           />
           <StatCard
             label="Tax Liability"
-            value={hasDocuments ? formatINR(214000) : "—"}
-            sub="New regime estimate"
+            value={hasFields ? formatINR(taxLiability) : "—"}
+            sub={hasFields ? "New regime estimate" : "Upload Form 16"}
             accent="rose"
-            icon={<TrendingDown className="h-4 w-4 text-trust-600" />}
+            icon={hasFields ? <TrendingDown className="h-4 w-4 text-trust-600" /> : undefined}
           />
           <StatCard
             label="Potential Refund"
-            value={hasDocuments ? formatINR(18500) : "—"}
-            sub="After TDS adjustment"
+            value={hasFields ? formatINR(refund) : "—"}
+            sub={hasFields ? "After TDS adjustment" : "Upload Form 16"}
             accent="green"
-            icon={<TrendingUp className="h-4 w-4 text-trust-600" />}
+            icon={hasFields ? <TrendingUp className="h-4 w-4 text-trust-600" /> : undefined}
           />
           <StatCard
-            label="Health Score"
-            value={hasDocuments ? "85/100" : "—"}
-            sub={hasDocuments ? "Strong" : "Upload to compute"}
+            label="Gross Salary"
+            value={hasFields ? formatINR(grossSalary) : "—"}
+            sub={hasFields ? "From Form 16" : "Upload to compute"}
             accent="blue"
           />
         </div>
@@ -101,29 +142,35 @@ export default function DashboardPage() {
           <Card className="lg:col-span-2">
             <div className="flex items-center justify-between">
               <h2 className="text-base font-bold text-slate-900">Tax Summary</h2>
-              <span className="rounded-full bg-trust-50 px-3 py-1 text-xs font-semibold text-trust-700">
-                New regime recommended
-              </span>
+              {hasFields && (
+                <span className="rounded-full bg-trust-50 px-3 py-1 text-xs font-semibold text-trust-700">
+                  New regime estimate
+                </span>
+              )}
             </div>
-            <div className="mt-5 space-y-3">
-              {[
-                { label: "Gross Salary", value: 1850000, highlight: false },
-                { label: "Standard Deduction", value: 75000, highlight: false },
-                { label: "Estimated Tax Liability", value: 214000, highlight: true },
-                { label: "TDS Already Deducted", value: 186500, highlight: false },
-              ].map((row) => (
-                <div key={row.label} className="flex items-center justify-between text-sm">
-                  <span className="text-slate-500">{row.label}</span>
-                  <span className={row.highlight ? "font-bold text-brand-700" : "font-medium text-slate-900"}>
-                    {hasDocuments ? formatINR(row.value) : "—"}
-                  </span>
+            {!hasFields ? (
+              <p className="mt-4 text-sm text-slate-400">Upload and review your Form 16 to see your tax summary.</p>
+            ) : (
+              <div className="mt-5 space-y-3">
+                {[
+                  { label: "Gross Salary", value: grossSalary },
+                  { label: "Standard Deduction", value: standardDeduction },
+                  { label: "Estimated Tax Liability", value: taxLiability, highlight: true },
+                  { label: "TDS Already Deducted", value: tds },
+                ].map((row) => (
+                  <div key={row.label} className="flex items-center justify-between text-sm">
+                    <span className="text-slate-500">{row.label}</span>
+                    <span className={row.highlight ? "font-bold text-brand-700" : "font-medium text-slate-900"}>
+                      {formatINR(row.value)}
+                    </span>
+                  </div>
+                ))}
+                <div className="border-t border-slate-100 pt-3 flex items-center justify-between text-sm">
+                  <span className="font-semibold text-slate-700">Estimated Refund</span>
+                  <span className="font-bold text-trust-600">{formatINR(refund)}</span>
                 </div>
-              ))}
-              <div className="border-t border-slate-100 pt-3 flex items-center justify-between text-sm">
-                <span className="font-semibold text-slate-700">Estimated Refund</span>
-                <span className="font-bold text-trust-600">{hasDocuments ? formatINR(18500) : "—"}</span>
               </div>
-            </div>
+            )}
           </Card>
 
           {/* Filing checklist */}

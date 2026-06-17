@@ -121,13 +121,13 @@ export default function AdvisorPage() {
 
     setInitializing(false);
 
-    await sendMessage(
-      data
-        ? "Hello! I've just loaded my tax data. Please analyze it and tell me my tax situation, which regime is better for me, and what I can do to save more tax."
-        : "Hello! I haven't uploaded my Form 16 yet. What can you tell me about saving taxes in India for salaried employees?",
-      data,
-      true
-    );
+    if (data) {
+      await sendMessage(
+        "Hello! I've just loaded my tax data. Please analyze it and tell me my tax situation, which regime is better for me, and what I can do to save more tax.",
+        data,
+        true
+      );
+    }
   }
 
   async function sendMessage(text: string, data?: TaxData | null, isSystem = false) {
@@ -233,6 +233,21 @@ export default function AdvisorPage() {
                 <Loader2 className="h-4 w-4 animate-spin" />
                 Loading your tax data…
               </div>
+            </div>
+          )}
+
+          {!initializing && !taxData && messages.length === 0 && (
+            <div className="flex flex-col items-center justify-center mt-16 text-center px-4">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-50 mb-4">
+                <AlertTriangle className="h-6 w-6 text-amber-500" />
+              </div>
+              <p className="font-semibold text-slate-800">No Form 16 data found</p>
+              <p className="mt-1 text-sm text-slate-500 max-w-sm">
+                Upload and review your Form 16 first. The advisor uses your extracted values to give personalised tax advice.
+              </p>
+              <a href="/upload" className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700 transition">
+                Go to Upload
+              </a>
             </div>
           )}
 
