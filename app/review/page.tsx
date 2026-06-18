@@ -10,7 +10,8 @@ import { ConfidenceBadge } from "@/components/tax/confidence-badge";
 import { ExplainNumberDrawer } from "@/components/tax/explain-number-drawer";
 import { createClient } from "@/lib/supabase/client";
 import type { ExtractedField } from "@/types/tax";
-import { ArrowRight, AlertTriangle, Loader2, Sparkles, FileSearch, PenLine } from "lucide-react";
+import { ArrowRight, AlertTriangle, Loader2, Sparkles, FileSearch, PenLine, TrendingDown, TrendingUp, Banknote } from "lucide-react";
+import { formatINR } from "@/lib/utils";
 
 type DBField = {
   id: string; label: string; value: number;
@@ -18,13 +19,16 @@ type DBField = {
 };
 
 const FORM16_FIELDS: Omit<DBField, "value">[] = [
-  { id: "gross-salary",      label: "Gross Salary (Sec 17(1))",       source: "Form 16", confidence: "high",   explanation: "Total salary income declared by employer under Section 17(1)." },
-  { id: "tds",               label: "TDS Deducted",                    source: "Form 16", confidence: "high",   explanation: "Total tax deducted at source and deposited against your PAN." },
-  { id: "hra",               label: "HRA Exemption u/s 10(13A)",       source: "Form 16", confidence: "high",   explanation: "House Rent Allowance exemption. Enter 0 if not claimed." },
-  { id: "pf",                label: "Employee PF (80C)",               source: "Form 16", confidence: "high",   explanation: "Employee PF contribution eligible under Section 80C. Enter 0 if not on Form 16." },
-  { id: "nps",               label: "NPS Contribution (80CCD)",        source: "Form 16", confidence: "high",   explanation: "National Pension Scheme deduction. Enter 0 if not present." },
-  { id: "standard-deduction",label: "Standard Deduction",              source: "Form 16", confidence: "high",   explanation: "Flat ₹75,000 standard deduction for salaried employees (AY 2024-25)." },
-  { id: "chapter-via",       label: "Total Chapter VI-A Deductions",   source: "Form 16", confidence: "high",   explanation: "Sum of all deductions under 80C, 80D, 80CCD etc." },
+  { id: "gross-salary",         label: "Gross Salary (Sec 17(1))",       source: "Form 16", confidence: "high",   explanation: "Total salary income declared by employer under Section 17(1) — this is before any deductions." },
+  { id: "standard-deduction",   label: "Standard Deduction",              source: "Form 16", confidence: "high",   explanation: "Flat ₹75,000 automatically deducted for all salaried employees (FY 2025-26)." },
+  { id: "hra",                  label: "HRA Exemption u/s 10(13A)",       source: "Form 16", confidence: "high",   explanation: "House Rent Allowance exemption — the portion of your HRA that is tax-free. Enter 0 if you don't pay rent." },
+  { id: "pf",                   label: "Employee PF (80C)",               source: "Form 16", confidence: "high",   explanation: "Your share of Provident Fund — eligible under Section 80C (up to ₹1.5L total)." },
+  { id: "nps",                  label: "NPS Contribution (80CCD)",        source: "Form 16", confidence: "high",   explanation: "National Pension Scheme contribution. Enter 0 if not present." },
+  { id: "chapter-via",          label: "Total Chapter VI-A Deductions",   source: "Form 16", confidence: "high",   explanation: "Total of all tax-saving deductions: 80C investments, 80D health insurance, etc." },
+  { id: "tax-after-cess",       label: "Tax Liability (as per Form 16)",  source: "Form 16", confidence: "high",   explanation: "The total tax your employer computed on your income — after all deductions, cess, and 87A rebate. This is the official figure from Part B." },
+  { id: "tds",                  label: "TDS Deducted by Employer",        source: "Form 16", confidence: "high",   explanation: "Tax Deducted at Source — the tax your company already deducted from your salary each month and paid to the government on your behalf." },
+  { id: "tax-refundable",       label: "Tax Refundable to You",           source: "Form 16", confidence: "high",   explanation: "If your employer deducted more TDS than your actual tax liability, this is how much the government owes you back. Enter 0 if not shown." },
+  { id: "tax-payable-employee", label: "Balance Tax Still to Pay",        source: "Form 16", confidence: "high",   explanation: "If TDS was less than actual tax, this is the remaining amount you need to pay. Enter 0 if not shown." },
 ];
 
 function toExtractedField(f: DBField): ExtractedField {
@@ -218,6 +222,9 @@ export default function ReviewPage() {
               </p>
             </div>
 
+            {/* Tax at a glance summary */}
+            <TaxAtAGlance fields={fields} editValues={editValues} />
+
             <div className="mt-4 space-y-3">
               {fields.map((field) => (
                 <EditableFieldCard
@@ -249,6 +256,80 @@ export default function ReviewPage() {
         )}
       </div>
     </AppShell>
+  );
+}
+
+function TaxAtAGlance({ fields, editValues }: { fields: DBField[]; editValues: Record<string, string> }) {
+  function val(id: string) {
+    const edited = editValues[id];
+    if (edited !== undefined) return parseFloat(edited) || 0;
+    return fields.find((f) => f.id === id)?.value ?? 0;
+  }
+
+  const tds = val("tds");
+  const taxLiability = val("tax-after-cess");
+  const refundable = val("tax-refundable");
+  const payable = val("tax-payable-employee");
+
+  // If Form 16 has explicit refund/payable, use that; otherwise derive it
+  const hasFormData = taxLiability > 0 || refundable > 0 || payable > 0;
+  if (!hasFormData && tds === 0) return null;
+
+  const derivedRefund = tds > 0 && taxLiability > 0 ? Math.max(0, tds - taxLiability) : 0;
+  const derivedPayable = tds > 0 && taxLiability > 0 ? Math.max(0, taxLiability - tds) : 0;
+
+  const finalRefund = refundable > 0 ? refundable : derivedRefund;
+  const finalPayable = payable > 0 ? payable : derivedPayable;
+  const isRefund = finalRefund > 0;
+
+  return (
+    <div className={`mt-4 rounded-2xl border-2 p-5 ${isRefund ? "border-trust-200 bg-trust-50" : finalPayable > 0 ? "border-amber-200 bg-amber-50" : "border-slate-200 bg-white"}`}>
+      <div className="flex items-center gap-2 mb-3">
+        <Banknote className={`h-5 w-5 ${isRefund ? "text-trust-600" : "text-amber-600"}`} />
+        <h3 className="font-bold text-slate-900 text-sm">Your Tax at a Glance</h3>
+      </div>
+      <div className="space-y-2 text-sm">
+        {taxLiability > 0 && (
+          <div className="flex justify-between">
+            <span className="text-slate-600 flex items-center gap-1.5">
+              <TrendingDown className="h-3.5 w-3.5 text-slate-400" />
+              Tax your employer calculated on your income
+            </span>
+            <span className="font-semibold text-slate-900">{formatINR(taxLiability)}</span>
+          </div>
+        )}
+        {tds > 0 && (
+          <div className="flex justify-between">
+            <span className="text-slate-600 flex items-center gap-1.5">
+              <TrendingUp className="h-3.5 w-3.5 text-trust-500" />
+              Tax already paid by your employer (TDS)
+            </span>
+            <span className="font-semibold text-trust-700">{formatINR(tds)}</span>
+          </div>
+        )}
+        {(finalRefund > 0 || finalPayable > 0) && (
+          <div className="mt-3 pt-3 border-t border-slate-200 flex justify-between items-center">
+            {isRefund ? (
+              <>
+                <div>
+                  <p className="font-bold text-trust-800">You are owed a refund ✅</p>
+                  <p className="text-xs text-trust-700 mt-0.5">Your employer deducted more TDS than needed — the government will return this to your bank account after you file.</p>
+                </div>
+                <span className="text-xl font-black text-trust-700 shrink-0 ml-4">{formatINR(finalRefund)}</span>
+              </>
+            ) : (
+              <>
+                <div>
+                  <p className="font-bold text-amber-800">Balance tax to pay ⚠️</p>
+                  <p className="text-xs text-amber-700 mt-0.5">You need to pay this remaining amount when filing your ITR (via Self-Assessment Tax).</p>
+                </div>
+                <span className="text-xl font-black text-amber-700 shrink-0 ml-4">{formatINR(finalPayable)}</span>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 

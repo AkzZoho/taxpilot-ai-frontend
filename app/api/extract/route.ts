@@ -9,16 +9,22 @@ Return ONLY a valid JSON object. Use exact rupee amounts as shown. If a value is
 
 {
   "grossSalary": <number: Gross Salary u/s 17(1)>,
-  "tdsDeducted": <number: Total TDS deducted/deposited>,
+  "tdsDeducted": <number: Total TDS deducted at source and deposited by employer>,
   "hraExemption": <number: HRA exemption u/s 10(13A) — 0 if not present>,
   "employeePF": <number: Employee PF u/s 80C — 0 if not present>,
   "npsContribution": <number: NPS u/s 80CCD — 0 if not present>,
   "standardDeduction": <number: Standard deduction>,
   "totalDeductionsChapterVIA": <number: Total Chapter VI-A deductions>,
-  "assessmentYear": "<string: e.g. 2024-25>",
+  "taxOnTotalIncome": <number: Tax on total income as computed in Form 16 Part B (before cess/surcharge) — 0 if not shown>,
+  "taxAfterCess": <number: Final tax payable including 4% Health & Education Cess and after 87A rebate — this is the total tax liability as per Form 16>,
+  "taxRefundable": <number: Tax refundable to employee (positive number if employer computed a refund, i.e. TDS > tax liability) — 0 if not present>,
+  "taxPayableByEmployee": <number: Additional tax still to be paid by employee if TDS fell short — 0 if not present>,
+  "assessmentYear": "<string: e.g. 2025-26>",
   "employerName": "<string>",
-  "taxableIncome": <number: Net taxable income>
+  "taxableIncome": <number: Net taxable income after all deductions>
 }
+
+IMPORTANT: taxRefundable and taxPayableByEmployee are mutually exclusive — only one can be non-zero. They come from the "Balance Tax Payable / (Tax Refundable)" line at the bottom of Part B.
 
 Return ONLY the JSON, no markdown, no explanation.`;
 
@@ -103,13 +109,16 @@ export async function POST(req: NextRequest) {
 
     // Save to Supabase
     const fields = [
-      { id: "gross-salary",       label: "Gross Salary (Sec 17(1))",     value: extracted.grossSalary },
-      { id: "tds",                label: "TDS Deducted",                  value: extracted.tdsDeducted },
-      { id: "hra",                label: "HRA Exemption u/s 10(13A)",     value: extracted.hraExemption },
-      { id: "pf",                 label: "Employee PF (80C)",             value: extracted.employeePF },
-      { id: "nps",                label: "NPS Contribution (80CCD)",      value: extracted.npsContribution },
-      { id: "standard-deduction", label: "Standard Deduction",            value: extracted.standardDeduction },
-      { id: "chapter-via",        label: "Total Chapter VI-A Deductions", value: extracted.totalDeductionsChapterVIA },
+      { id: "gross-salary",         label: "Gross Salary (Sec 17(1))",      value: extracted.grossSalary },
+      { id: "tds",                  label: "TDS Deducted by Employer",       value: extracted.tdsDeducted },
+      { id: "hra",                  label: "HRA Exemption u/s 10(13A)",      value: extracted.hraExemption },
+      { id: "pf",                   label: "Employee PF (80C)",              value: extracted.employeePF },
+      { id: "nps",                  label: "NPS Contribution (80CCD)",       value: extracted.npsContribution },
+      { id: "standard-deduction",   label: "Standard Deduction",             value: extracted.standardDeduction },
+      { id: "chapter-via",          label: "Total Chapter VI-A Deductions",  value: extracted.totalDeductionsChapterVIA },
+      { id: "tax-after-cess",       label: "Tax Liability (as per Form 16)", value: extracted.taxAfterCess },
+      { id: "tax-refundable",       label: "Tax Refundable (Form 16)",       value: extracted.taxRefundable },
+      { id: "tax-payable-employee", label: "Balance Tax Payable",            value: extracted.taxPayableByEmployee },
     ];
 
     for (const field of fields) {

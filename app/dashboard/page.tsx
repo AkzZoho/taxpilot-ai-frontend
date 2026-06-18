@@ -22,6 +22,7 @@ interface Stats {
   taxLiability: number;
   refund: number;
   hasFields: boolean;
+  taxFromForm16: boolean;
 }
 
 function computeTax(income: number): number {
@@ -53,7 +54,7 @@ const lockedActions = [
 export default function DashboardPage() {
   const [stats, setStats] = useState<Stats>({
     docCount: 0, userName: "", grossSalary: 0, tds: 0,
-    standardDeduction: 0, taxLiability: 0, refund: 0, hasFields: false,
+    standardDeduction: 0, taxLiability: 0, refund: 0, hasFields: false, taxFromForm16: false,
   });
   const [loading, setLoading] = useState(true);
 
@@ -73,14 +74,20 @@ export default function DashboardPage() {
       const grossSalary = f["gross-salary"] ?? 0;
       const tds = f["tds"] ?? 0;
       const standardDeduction = 75000;
-      const taxableIncome = Math.max(0, grossSalary - standardDeduction);
-      const taxLiability = computeTax(taxableIncome);
-      const refund = Math.max(0, tds - taxLiability);
+      // Prefer Form 16's own computed tax figure; fall back to our slab estimate
+      const taxLiability = f["tax-after-cess"] > 0
+        ? f["tax-after-cess"]
+        : computeTax(Math.max(0, grossSalary - standardDeduction));
+      // Prefer Form 16's explicit refund; fall back to derived
+      const refund = f["tax-refundable"] > 0
+        ? f["tax-refundable"]
+        : Math.max(0, tds - taxLiability);
 
       setStats({
         docCount: count ?? 0,
         userName: user?.user_metadata?.full_name?.split(" ")[0] ?? "there",
         grossSalary, tds, standardDeduction, taxLiability, refund, hasFields,
+        taxFromForm16: (f["tax-after-cess"] ?? 0) > 0,
       });
       setLoading(false);
     }
@@ -88,7 +95,7 @@ export default function DashboardPage() {
   }, []);
 
   const hasDocuments = stats.docCount > 0;
-  const { hasFields, grossSalary, tds, standardDeduction, taxLiability, refund } = stats;
+  const { hasFields, grossSalary, tds, standardDeduction, taxLiability, refund, taxFromForm16 } = stats;
 
   return (
     <AppShell>
@@ -119,14 +126,14 @@ export default function DashboardPage() {
           <StatCard
             label="Tax Liability"
             value={hasFields ? formatINR(taxLiability) : "—"}
-            sub={hasFields ? "New regime estimate" : "Upload Form 16"}
+            sub={hasFields ? (taxFromForm16 ? "From Form 16" : "New regime estimate") : "Upload Form 16"}
             accent="rose"
             icon={hasFields ? <TrendingDown className="h-4 w-4 text-trust-600" /> : undefined}
           />
           <StatCard
-            label="Potential Refund"
+            label={refund > 0 ? "Refund Due" : "Balance Tax"}
             value={hasFields ? formatINR(refund) : "—"}
-            sub={hasFields ? "After TDS adjustment" : "Upload Form 16"}
+            sub={hasFields ? (taxFromForm16 ? "As per Form 16" : "Estimated after TDS") : "Upload Form 16"}
             accent="green"
             icon={hasFields ? <TrendingUp className="h-4 w-4 text-trust-600" /> : undefined}
           />
@@ -156,9 +163,9 @@ export default function DashboardPage() {
               <div className="mt-5 space-y-3">
                 {[
                   { label: "Gross Salary", value: grossSalary },
-                  { label: "Standard Deduction", value: standardDeduction },
-                  { label: "Estimated Tax Liability", value: taxLiability, highlight: true },
-                  { label: "TDS Already Deducted", value: tds },
+                  { label: "Standard Deduction (auto)", value: standardDeduction },
+                  { label: taxFromForm16 ? "Tax Liability (Form 16)" : "Tax Liability (estimate)", value: taxLiability, highlight: true },
+                  { label: "TDS Paid by Employer", value: tds },
                 ].map((row) => (
                   <div key={row.label} className="flex items-center justify-between text-sm">
                     <span className="text-slate-500">{row.label}</span>
@@ -168,8 +175,12 @@ export default function DashboardPage() {
                   </div>
                 ))}
                 <div className="border-t border-slate-100 pt-3 flex items-center justify-between text-sm">
-                  <span className="font-semibold text-slate-700">Estimated Refund</span>
-                  <span className="font-bold text-trust-600">{formatINR(refund)}</span>
+                  <span className="font-semibold text-slate-700">
+                    {refund > 0 ? "Refund — Government owes you" : "Balance tax to pay"}
+                  </span>
+                  <span className={`font-bold ${refund > 0 ? "text-trust-600" : "text-amber-600"}`}>
+                    {formatINR(refund)}
+                  </span>
                 </div>
               </div>
             )}
