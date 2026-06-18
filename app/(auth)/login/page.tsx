@@ -25,6 +25,10 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [forgotMode, setForgotMode] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetSent, setResetSent] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -34,7 +38,7 @@ export default function LoginPage() {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
       if (error.message.includes("Email not confirmed")) {
-        setError("Please confirm your email before logging in, or ask your admin to disable email confirmation for testing.");
+        setError("Please confirm your email before logging in.");
       } else {
         setError(error.message);
       }
@@ -56,6 +60,17 @@ export default function LoginPage() {
       setError(error.message);
       setGoogleLoading(false);
     }
+  }
+
+  async function handleForgotPassword(e: React.FormEvent) {
+    e.preventDefault();
+    setResetLoading(true);
+    const supabase = createClient();
+    await supabase.auth.resetPasswordForEmail(resetEmail, {
+      redirectTo: `${window.location.origin}/auth/callback`,
+    });
+    setResetLoading(false);
+    setResetSent(true);
   }
 
   return (
@@ -93,49 +108,118 @@ export default function LoginPage() {
           <div className="mb-8 lg:hidden flex items-center gap-2">
             <span className="text-xl font-black">TaxPilot AI</span>
           </div>
-          <h1 className="text-2xl font-bold text-slate-900">Welcome back</h1>
-          <p className="mt-1 text-sm text-slate-500">Sign in to your tax workspace.</p>
 
-          {/* Google Sign In */}
-          <button
-            onClick={handleGoogleLogin}
-            disabled={googleLoading}
-            className="mt-8 flex w-full items-center justify-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 hover:border-slate-300 disabled:opacity-60"
-          >
-            {googleLoading ? (
-              <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-slate-600" />
-            ) : (
-              <GoogleIcon />
-            )}
-            Continue with Google
-          </button>
+          {/* Forgot password flow */}
+          {forgotMode ? (
+            <>
+              <button
+                onClick={() => { setForgotMode(false); setResetSent(false); setResetEmail(""); }}
+                className="mb-6 flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 transition"
+              >
+                ← Back to sign in
+              </button>
 
-          {/* Divider */}
-          <div className="relative my-5 flex items-center">
-            <div className="flex-1 border-t border-slate-200" />
-            <span className="mx-3 text-xs text-slate-400 font-medium">or sign in with email</span>
-            <div className="flex-1 border-t border-slate-200" />
-          </div>
+              {resetSent ? (
+                <div className="rounded-2xl border border-trust-100 bg-trust-50 p-6 text-center">
+                  <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-trust-100">
+                    <Mail className="h-5 w-5 text-trust-600" />
+                  </div>
+                  <p className="font-bold text-trust-800">Check your inbox</p>
+                  <p className="mt-1 text-sm text-trust-700">
+                    We sent a password reset link to <strong>{resetEmail}</strong>. It expires in 24 hours.
+                  </p>
+                  <button
+                    onClick={() => { setForgotMode(false); setResetSent(false); setResetEmail(""); }}
+                    className="mt-4 text-sm font-semibold text-brand-600 hover:underline"
+                  >
+                    Back to sign in
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <h1 className="text-2xl font-bold text-slate-900">Forgot password?</h1>
+                  <p className="mt-1 text-sm text-slate-500">Enter your email and we will send a reset link.</p>
+                  <form className="mt-8 space-y-4" onSubmit={handleForgotPassword}>
+                    <Field
+                      icon={Mail}
+                      label="Email address"
+                      type="email"
+                      value={resetEmail}
+                      onChange={(e) => setResetEmail(e.target.value)}
+                      placeholder="you@example.com"
+                    />
+                    <Button className="w-full" size="lg" disabled={resetLoading}>
+                      {resetLoading ? "Sending…" : <>Send Reset Link <ArrowRight className="h-4 w-4" /></>}
+                    </Button>
+                  </form>
+                </>
+              )}
+            </>
+          ) : (
+            <>
+              <h1 className="text-2xl font-bold text-slate-900">Welcome back</h1>
+              <p className="mt-1 text-sm text-slate-500">Sign in to your tax workspace.</p>
 
-          <form className="space-y-4" onSubmit={handleLogin}>
-            <Field icon={Mail} label="Email" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" />
-            <Field icon={Lock} label="Password" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" />
+              <button
+                onClick={handleGoogleLogin}
+                disabled={googleLoading}
+                className="mt-8 flex w-full items-center justify-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 hover:border-slate-300 disabled:opacity-60"
+              >
+                {googleLoading
+                  ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-slate-600" />
+                  : <GoogleIcon />}
+                Continue with Google
+              </button>
 
-            {error && (
-              <div className="rounded-xl bg-rose-50 border border-rose-100 px-4 py-3 text-sm text-rose-700">
-                {error}
+              <div className="relative my-5 flex items-center">
+                <div className="flex-1 border-t border-slate-200" />
+                <span className="mx-3 text-xs text-slate-400 font-medium">or sign in with email</span>
+                <div className="flex-1 border-t border-slate-200" />
               </div>
-            )}
 
-            <Button className="w-full" size="lg" disabled={loading}>
-              {loading ? "Signing in…" : <>Sign in <ArrowRight className="h-4 w-4" /></>}
-            </Button>
-          </form>
+              <form className="space-y-4" onSubmit={handleLogin}>
+                <Field icon={Mail} label="Email" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" />
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-sm font-medium text-slate-700">Password</label>
+                    <button
+                      type="button"
+                      onClick={() => { setForgotMode(true); setResetEmail(email); }}
+                      className="text-xs font-semibold text-brand-600 hover:underline"
+                    >
+                      Forgot password?
+                    </button>
+                  </div>
+                  <div className="relative">
+                    <Lock className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="password"
+                      value={password}
+                      onChange={e => setPassword(e.target.value)}
+                      placeholder="••••••••"
+                      required
+                      className="focus-ring w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-4 text-sm text-slate-900 placeholder:text-slate-400 transition"
+                    />
+                  </div>
+                </div>
 
-          <p className="mt-6 text-center text-sm text-slate-500">
-            No account?{" "}
-            <Link href="/signup" className="font-semibold text-brand-600 hover:underline">Create one free</Link>
-          </p>
+                {error && (
+                  <div className="rounded-xl bg-rose-50 border border-rose-100 px-4 py-3 text-sm text-rose-700">
+                    {error}
+                  </div>
+                )}
+
+                <Button className="w-full" size="lg" disabled={loading}>
+                  {loading ? "Signing in…" : <>Sign in <ArrowRight className="h-4 w-4" /></>}
+                </Button>
+              </form>
+
+              <p className="mt-6 text-center text-sm text-slate-500">
+                No account?{" "}
+                <Link href="/signup" className="font-semibold text-brand-600 hover:underline">Create one free</Link>
+              </p>
+            </>
+          )}
         </div>
       </div>
     </div>
