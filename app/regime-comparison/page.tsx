@@ -16,9 +16,10 @@ function computeTax(income: number, regime: "old" | "new"): number {
   if (income <= 0) return 0;
   let tax = 0;
   if (regime === "new") {
+    // FY 2025-26 / AY 2026-27 — Budget 2025 revised slabs
     const slabs = [
-      [300000, 0], [400000, 0.05], [300000, 0.10],
-      [200000, 0.15], [300000, 0.20], [Infinity, 0.30],
+      [400000, 0], [400000, 0.05], [400000, 0.10],
+      [400000, 0.15], [400000, 0.20], [400000, 0.25], [Infinity, 0.30],
     ] as [number, number][];
     let rem = income;
     for (const [limit, rate] of slabs) {
@@ -27,8 +28,8 @@ function computeTax(income: number, regime: "old" | "new"): number {
       rem -= chunk;
       if (rem <= 0) break;
     }
-    // New regime rebate: no tax if income ≤ 7L
-    if (income <= 700000) tax = 0;
+    // 87A rebate: zero tax if taxable income ≤ ₹12L (Budget 2025)
+    if (income <= 1200000) tax = 0;
   } else {
     const slabs = [
       [250000, 0], [250000, 0.05], [500000, 0.20], [Infinity, 0.30],

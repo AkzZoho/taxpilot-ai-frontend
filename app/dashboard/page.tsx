@@ -26,9 +26,10 @@ interface Stats {
 
 function computeTax(income: number): number {
   if (income <= 0) return 0;
+  // FY 2025-26 / AY 2026-27 new regime slabs (Budget 2025)
   const slabs: [number, number][] = [
-    [300000, 0], [400000, 0.05], [300000, 0.10],
-    [200000, 0.15], [300000, 0.20], [Infinity, 0.30],
+    [400000, 0], [400000, 0.05], [400000, 0.10],
+    [400000, 0.15], [400000, 0.20], [400000, 0.25], [Infinity, 0.30],
   ];
   let tax = 0, rem = income;
   for (const [limit, rate] of slabs) {
@@ -37,7 +38,8 @@ function computeTax(income: number): number {
     rem -= chunk;
     if (rem <= 0) break;
   }
-  if (income <= 700000) tax = 0;
+  // 87A rebate: zero tax if taxable income ≤ ₹12L (Budget 2025)
+  if (income <= 1200000) tax = 0;
   return Math.round(tax * 1.04);
 }
 
@@ -97,7 +99,7 @@ export default function DashboardPage() {
             <h1 className="page-title">
               {loading ? "Dashboard" : `Hey, ${stats.userName}`}
             </h1>
-            <p className="page-subtitle">AY 2024–25 · Your tax overview</p>
+            <p className="page-subtitle">AY 2026–27 (FY 2025–26) · Your tax overview</p>
           </div>
           <Link href="/upload">
             <Button size="sm">
