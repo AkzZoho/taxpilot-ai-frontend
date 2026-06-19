@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, CheckCircle2, MessageCircle, Upload, IndianRupee, Sparkles, ShieldCheck, TrendingDown } from "lucide-react";
+import { ArrowRight, CheckCircle2, MessageCircle, Upload, IndianRupee, ShieldCheck, TrendingDown, BadgeCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function LandingPage() {
@@ -25,7 +25,7 @@ export default function LandingPage() {
       {/* Hero */}
       <section className="mx-auto max-w-6xl px-5 pt-20 pb-16 text-center">
         <div className="inline-flex items-center gap-2 rounded-full border border-brand-100 bg-brand-50 px-4 py-1.5 text-sm font-semibold text-brand-700 mb-6">
-          <Sparkles className="h-3.5 w-3.5" />
+          <BadgeCheck className="h-3.5 w-3.5" />
           Built for first-time filers and anyone who finds taxes confusing
         </div>
         <h1 className="text-5xl sm:text-6xl font-black tracking-tight text-slate-950 leading-tight">
@@ -91,9 +91,12 @@ export default function LandingPage() {
 
           {/* Chat preview mockup */}
           <div className="rounded-3xl border border-slate-200 bg-slate-50 p-6 space-y-4 shadow-sm">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-brand-gradient">
-                <Sparkles className="h-4 w-4 text-white" />
+            <div className="flex items-center gap-2.5 mb-2">
+              <div className="relative">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-gradient font-black text-white text-base shadow-sm">
+                  A
+                </div>
+                <span className="absolute -bottom-0.5 -right-0.5 flex h-3 w-3 items-center justify-center rounded-full bg-trust-500 border-2 border-slate-50" />
               </div>
               <div>
                 <p className="text-sm font-bold text-slate-900">Arjun · TaxPilot Advisor</p>
